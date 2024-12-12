@@ -21,40 +21,40 @@ namespace Http {
 namespace Http1 {
 namespace {
 
-static Http1Settings fromHttp1Settings() {
+static Http1Settings fromHttp1Settings(bool use_balsa) {
   Http1Settings h1_settings;
   h1_settings.allow_absolute_url_ = true;
   h1_settings.accept_http_10_ = true;
   h1_settings.default_host_for_http_10_ = "localhost";
   h1_settings.enable_trailers_ = true;
   h1_settings.stream_error_on_invalid_http_message_ = true;
+  h1_settings.use_balsa_parser_ = use_balsa;
   return h1_settings;
 }
 
 class Http1Harness {
 public:
-  Http1Harness(const Http1Settings& server_settings, const Http1Settings& client_settings)
-      : server_settings_(server_settings), client_settings_(client_settings) {
+  Http1Harness() {
     ON_CALL(mock_server_callbacks_, newStream(_, _))
         .WillByDefault(Invoke(
             [&](ResponseEncoder&, bool) -> RequestDecoder& { return orphan_request_decoder_; }));
   }
 
   void fuzzResponse(Buffer::Instance& payload, bool use_balsa) {
-    client_settings_.use_balsa_parser_ = use_balsa;
+    auto client_settings = fromHttp1Settings(use_balsa);
     client_ = std::make_unique<Http1::ClientConnectionImpl>(
         mock_client_connection_,
         Http1::CodecStats::atomicGet(http1_stats_, *stats_store_.rootScope()),
-        mock_client_callbacks_, client_settings_, absl::nullopt, Http::DEFAULT_MAX_HEADERS_COUNT);
+        mock_client_callbacks_, client_settings, absl::nullopt, Http::DEFAULT_MAX_HEADERS_COUNT);
     Status status = client_->dispatch(payload);
   }
 
   void fuzzRequest(Buffer::Instance& payload, bool use_balsa) {
-    server_settings_.use_balsa_parser_ = use_balsa;
+    auto server_settings = fromHttp1Settings(use_balsa);
     server_ = std::make_unique<Http1::ServerConnectionImpl>(
         mock_server_connection_,
         Http1::CodecStats::atomicGet(http1_stats_, *stats_store_.rootScope()),
-        mock_server_callbacks_, server_settings_, Http::DEFAULT_MAX_REQUEST_HEADERS_KB,
+        mock_server_callbacks_, server_settings, Http::DEFAULT_MAX_REQUEST_HEADERS_KB,
         Http::DEFAULT_MAX_HEADERS_COUNT, envoy::config::core::v3::HttpProtocolOptions::ALLOW,
         overload_manager_);
 
@@ -62,7 +62,6 @@ public:
   }
 
 private:
-  Http1Settings server_settings_, client_settings_;
   Stats::IsolatedStoreImpl stats_store_;
   Http1::CodecStats::AtomicPtr http1_stats_;
 
@@ -86,9 +85,7 @@ static void resetHarness() { harness = nullptr; }
 
 DEFINE_FUZZER(const uint8_t* buf, size_t len) {
   if (harness == nullptr) {
-    Http1Settings server_settings = fromHttp1Settings();
-    Http1Settings client_settings = fromHttp1Settings();
-    harness = std::make_unique<Http1Harness>(server_settings, client_settings);
+    harness = std::make_unique<Http1Harness>();
     atexit(resetHarness);
   }
 

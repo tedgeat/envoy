@@ -300,7 +300,7 @@ protected:
 
   Network::Connection& connection_;
   CodecStats& stats_;
-  const Http1Settings codec_settings_;
+  const Http1Settings& codec_settings_;
   std::unique_ptr<Parser> parser_;
   Buffer::Instance* current_dispatching_buffer_{};
   Buffer::Instance* output_buffer_ = nullptr; // Not owned
