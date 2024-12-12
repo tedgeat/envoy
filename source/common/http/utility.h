@@ -315,6 +315,20 @@ bool isH3UpgradeRequest(const RequestHeaderMap& headers);
  */
 bool isWebSocketUpgradeRequest(const RequestHeaderMap& headers);
 
+/**
+ * Removes `tokens_to_remove` from the `Upgrade` header, if present and part of a comma separated
+ * set of values. Removes the `Upgrade` header if it only contains `tokens_to_remove`.
+ */
+void removeUpgrade(RequestOrResponseHeaderMap& headers,
+                   StringUtil::CaseUnorderedSet tokens_to_remove);
+
+/**
+ * Removes `tokens_to_remove` from the `Connection` header, if present and part of a comma separated
+ * set of values. Removes the `Connection` header if it only contains `tokens_to_remove`.
+ */
+void removeConnectionUpgrade(RequestOrResponseHeaderMap& headers,
+                             StringUtil::CaseUnorderedSet tokens_to_remove);
+
 struct EncodeFunctions {
   // Function to modify locally generated response headers.
   std::function<void(ResponseHeaderMap& headers)> modify_headers_;

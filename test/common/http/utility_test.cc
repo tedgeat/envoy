@@ -235,6 +235,57 @@ TEST(HttpUtility, getResponseStatus) {
   EXPECT_EQ(200U, Utility::getResponseStatus(TestResponseHeaderMapImpl{{":status", "200"}}));
 }
 
+TEST(HttpUtility, removeUpgrade) {
+  {
+    TestRequestHeaderMapImpl expected_headers = {
+        {":method", "GET"}, {"Upgrade", "foo1"}, {"Connection", "keep-alive, Upgrade"}};
+    TestRequestHeaderMapImpl converted_headers = {
+        {":method", "GET"}, {"Upgrade", "foo1, foo2"}, {"Connection", "keep-alive, Upgrade"}};
+    StringUtil::CaseUnorderedSet tokens_to_remove{"foo2"};
+
+    Utility::removeUpgrade(converted_headers, tokens_to_remove);
+
+    ASSERT_EQ(converted_headers, expected_headers);
+  }
+
+  {
+    TestRequestHeaderMapImpl expected_headers = {{":method", "GET"},
+                                                 {"Connection", "keep-alive, Upgrade"}};
+    TestRequestHeaderMapImpl converted_headers = {
+        {":method", "GET"}, {"Upgrade", "foo1"}, {"Connection", "keep-alive, Upgrade"}};
+    StringUtil::CaseUnorderedSet tokens_to_remove{"foo1"};
+
+    Utility::removeUpgrade(converted_headers, tokens_to_remove);
+
+    ASSERT_EQ(converted_headers, expected_headers);
+  }
+}
+
+TEST(HttpUtility, removeConnectionUpgrade) {
+  {
+    TestRequestHeaderMapImpl expected_headers = {
+        {":method", "GET"}, {"Upgrade", "foo"}, {"Connection", "keep-alive"}};
+    TestRequestHeaderMapImpl converted_headers = {
+        {":method", "GET"}, {"Upgrade", "foo"}, {"Connection", "keep-alive, Upgrade"}};
+    StringUtil::CaseUnorderedSet tokens_to_remove{"upgrade"};
+
+    Utility::removeConnectionUpgrade(converted_headers, tokens_to_remove);
+
+    ASSERT_EQ(converted_headers, expected_headers);
+  }
+
+  {
+    TestRequestHeaderMapImpl expected_headers = {{":method", "GET"}, {"Upgrade", "foo"}};
+    TestRequestHeaderMapImpl converted_headers = {
+        {":method", "GET"}, {"Upgrade", "foo"}, {"Connection", "Upgrade"}};
+    StringUtil::CaseUnorderedSet tokens_to_remove{"upgrade"};
+
+    Utility::removeConnectionUpgrade(converted_headers, tokens_to_remove);
+
+    ASSERT_EQ(converted_headers, expected_headers);
+  }
+}
+
 TEST(HttpUtility, isWebSocketUpgradeRequest) {
   EXPECT_FALSE(Utility::isWebSocketUpgradeRequest(TestRequestHeaderMapImpl{}));
   EXPECT_FALSE(

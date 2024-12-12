@@ -2139,6 +2139,66 @@ TEST_P(Http1ServerConnectionImplTest, IgnoreUpgradeH2cCloseEtc) {
   expectHeadersTest(Protocol::Http11, true, buffer, expected_headers);
 }
 
+TEST_P(Http1ServerConnectionImplTest, IgnoreTLSUpgradeRequest) {
+  codec_settings_.ignored_upgrades_ = {"TLS/1.2"};
+
+  initialize();
+
+  TestRequestHeaderMapImpl expected_headers{
+      {":authority", "www.somewhere.com"}, {":scheme", "http"}, {":path", "/"}, {":method", "GET"}};
+  Buffer::OwnedImpl buffer("GET http://www.somewhere.com/ HTTP/1.1\r\nConnection: Upgrade\r\n"
+                           "Upgrade: TLS/1.2\r\nHost: bah\r\n\r\n");
+  expectHeadersTest(Protocol::Http11, true, buffer, expected_headers);
+}
+
+TEST_P(Http1ServerConnectionImplTest, IgnoreWildcardUpgradeRequest) {
+  codec_settings_.ignored_upgrades_ = {"*"};
+
+  initialize();
+
+  TestRequestHeaderMapImpl expected_headers{
+      {":authority", "www.somewhere.com"}, {":scheme", "http"}, {":path", "/"}, {":method", "GET"}};
+  Buffer::OwnedImpl buffer("GET http://www.somewhere.com/ HTTP/1.1\r\nConnection: Upgrade\r\n"
+                           "Upgrade: TLS/1.1, TLS/1.2\r\nHost: bah\r\n\r\n");
+  expectHeadersTest(Protocol::Http11, true, buffer, expected_headers);
+}
+
+TEST_P(Http1ServerConnectionImplTest, PartialIgnoreUpgradeRequest) {
+  codec_settings_.ignored_upgrades_ = {"TLS/1.2"};
+
+  initialize();
+
+  InSequence sequence;
+  NiceMock<MockRequestDecoder> decoder;
+  EXPECT_CALL(callbacks_, newStream(_, _)).WillOnce(ReturnRef(decoder));
+
+  TestRequestHeaderMapImpl expected_headers{
+      {":path", "/"}, {":method", "GET"}, {"connection", "upgrade"}, {"upgrade", "TLS/1.1"}};
+  EXPECT_CALL(decoder, decodeHeaders_(HeaderMapEqual(&expected_headers), false));
+
+  Buffer::OwnedImpl buffer(
+      "GET / HTTP/1.1\r\nConnection: upgrade\r\nUpgrade: TLS/1.1, TLS/1.2\r\n\r\n");
+  auto status = codec_->dispatch(buffer);
+  EXPECT_TRUE(status.ok());
+}
+
+TEST_P(Http1ServerConnectionImplTest, NoIgnoreUpgradeRequest) {
+  initialize();
+
+  InSequence sequence;
+  NiceMock<MockRequestDecoder> decoder;
+  EXPECT_CALL(callbacks_, newStream(_, _)).WillOnce(ReturnRef(decoder));
+
+  TestRequestHeaderMapImpl expected_headers{
+      {":path", "/"}, {":method", "GET"}, {"connection", "upgrade"}, {"upgrade", "TLS/1.2"}};
+  EXPECT_CALL(decoder, decodeHeaders_(HeaderMapEqual(&expected_headers), false));
+  ;
+
+  Buffer::OwnedImpl buffer("GET / HTTP/1.1\r\nConnection: upgrade\r\nUpgrade: TLS/1.2\r\n\r\n");
+  auto status = codec_->dispatch(buffer);
+  EXPECT_TRUE(status.ok());
+}
+
 TEST_P(Http1ServerConnectionImplTest, UpgradeRequest) {
   initialize();
 
@@ -2427,6 +2487,39 @@ TEST_P(Http1ServerConnectionImplTest, LoadShedPointCanCloseConnectionOnDispatchO
   Buffer::OwnedImpl buffer("GET / HTTP/1.1\r\n\r\n");
   const auto status = codec_->dispatch(buffer);
 
+  EXPECT_FALSE(status.ok());
+  EXPECT_TRUE(isEnvoyOverloadError(status));
+}
+
+TEST_P(Http1ServerConnectionImplTest, LoadShedPointForAlreadyResetStream) {
+  InSequence sequence;
+
+  Server::MockLoadShedPoint mock_abort_dispatch;
+  EXPECT_CALL(overload_manager_, getLoadShedPoint(_)).WillOnce(Return(&mock_abort_dispatch));
+  initialize();
+
+  EXPECT_CALL(mock_abort_dispatch, shouldShedLoad()).WillOnce(Return(false));
+
+  NiceMock<MockRequestDecoder> decoder;
+  Http::ResponseEncoder* response_encoder = nullptr;
+  EXPECT_CALL(callbacks_, newStream(_, _))
+      .WillOnce(Invoke([&](ResponseEncoder& encoder, bool) -> RequestDecoder& {
+        response_encoder = &encoder;
+        return decoder;
+      }));
+
+  Buffer::OwnedImpl request_line_buffer("GET / HTTP/1.1\r\n");
+  auto status = codec_->dispatch(request_line_buffer);
+  EXPECT_EQ(0, request_line_buffer.length());
+
+  EXPECT_CALL(mock_abort_dispatch, shouldShedLoad()).WillRepeatedly(Return(true));
+  Buffer::OwnedImpl headers_buffer("final-header: value\r\n\r\n");
+
+  // The reset stream can be triggered in the middle of dispatching.
+  connection_.dispatcher_.post(
+      [&] { response_encoder->getStream().resetStream(StreamResetReason::LocalReset); });
+
+  status = codec_->dispatch(headers_buffer);
   EXPECT_FALSE(status.ok());
   EXPECT_TRUE(isEnvoyOverloadError(status));
 }

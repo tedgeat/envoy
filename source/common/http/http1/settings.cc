@@ -19,6 +19,15 @@ Http1Settings parseHttp1Settings(const envoy::config::core::v3::Http1ProtocolOpt
   ret.enable_trailers_ = config.enable_trailers();
   ret.allow_chunked_length_ = config.allow_chunked_length();
 
+  const auto& ignore_http_11_upgrade_ = config.ignore_http_11_upgrade();
+
+  StringUtil::CaseUnorderedSet ignored_upgrades_;
+  for (int i = 0; i < ignore_http_11_upgrade_.size(); i++) {
+    ignored_upgrades_.insert(ignore_http_11_upgrade_[i]);
+  }
+
+  ret.ignored_upgrades_ = ignored_upgrades_;
+
   if (config.header_key_format().has_proper_case_words()) {
     ret.header_key_format_ = Http1Settings::HeaderKeyFormat::ProperCase;
   } else if (config.header_key_format().has_stateful_formatter()) {
