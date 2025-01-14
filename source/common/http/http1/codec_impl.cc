@@ -866,7 +866,7 @@ StatusOr<CallbackResult> ConnectionImpl::onHeadersCompleteImpl() {
       Utility::removeConnectionUpgrade(request_or_response_headers,
                                        caseUnorderedSetContainingUpgradeAndHttp2Settings());
       request_or_response_headers.remove(header_values.Http2Settings);
-    } else if (is_tls && codec_settings_.ignore_http_11_tls_upgrade) {
+    } else if (is_tls && codec_settings_.ignore_http_11_tls_upgrade_) {
       ENVOY_CONN_LOG(trace, "removing ignored tls upgrade headers.", connection_);
       request_or_response_headers.removeUpgrade();
       Utility::removeConnectionUpgrade(request_or_response_headers,
