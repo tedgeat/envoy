@@ -858,7 +858,7 @@ StatusOr<CallbackResult> ConnectionImpl::onHeadersCompleteImpl() {
 
     // Ignore h2c upgrade requests until we support them.
     // See https://github.com/envoyproxy/envoy/issues/7161 for details.
-    // TLS upgrades are rejected unless ignore_http_11_upgrade_ configured.
+    // TLS upgrades are rejected unless ignore_http_11_tls_upgrade is configured.
     // See https://github.com/envoyproxy/envoy/issues/36305 for details.
     if (is_h2c) {
       ENVOY_CONN_LOG(trace, "removing unsupported h2c upgrade headers.", connection_);
@@ -866,7 +866,7 @@ StatusOr<CallbackResult> ConnectionImpl::onHeadersCompleteImpl() {
       Utility::removeConnectionUpgrade(request_or_response_headers,
                                        caseUnorderedSetContainingUpgradeAndHttp2Settings());
       request_or_response_headers.remove(header_values.Http2Settings);
-    } else if (is_tls && codec_settings_.ignore_http_11_upgrade_) {
+    } else if (is_tls && codec_settings_.ignore_http_11_tls_upgrade) {
       ENVOY_CONN_LOG(trace, "removing ignored tls upgrade headers.", connection_);
       request_or_response_headers.removeUpgrade();
       Utility::removeConnectionUpgrade(request_or_response_headers,

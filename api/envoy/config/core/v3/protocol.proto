@@ -418,8 +418,8 @@ message Http1ProtocolOptions {
   // to reject custom methods.
   bool allow_custom_methods = 10 [(xds.annotations.v3.field_status).work_in_progress = true];
 
-  // Ignore HTTP/1.1 upgrade headers rather than default rejection
-  bool ignore_http_11_upgrade = 11;
+  // Ignore HTTP/1.1 tls upgrade headers rather than default rejection
+  bool ignore_http_11_tls_upgrade = 11;
 }
 
 message KeepaliveSettings {

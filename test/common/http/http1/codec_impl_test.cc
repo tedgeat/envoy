@@ -2140,7 +2140,7 @@ TEST_P(Http1ServerConnectionImplTest, IgnoreUpgradeH2cCloseEtc) {
 }
 
 TEST_P(Http1ServerConnectionImplTest, IgnoreUpgradeTLSRequest) {
-  codec_settings_.ignore_http_11_upgrade_ = true;
+  codec_settings_.ignore_http_11_tls_upgrade = true;
 
   initialize();
 
