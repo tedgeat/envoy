@@ -499,7 +499,7 @@ struct Http1Settings {
   bool allow_chunked_length_{false};
   // Remove HTTP/1.1 TLS Upgrade header from message and process. By default such messages are
   // rejected
-  bool ignore_http_11_tls_upgrade_{false};
+  std::vector<std::string> allowed_upgrades_{};
 
   enum class HeaderKeyFormat {
     // By default no formatting is performed, presenting all headers in lowercase (as Envoy

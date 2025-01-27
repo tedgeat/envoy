@@ -853,8 +853,6 @@ StatusOr<CallbackResult> ConnectionImpl::onHeadersCompleteImpl() {
   if (Utility::isUpgrade(request_or_response_headers) && upgradeAllowed()) {
     auto upgrade_value = request_or_response_headers.getUpgradeValue();
     const bool is_h2c = absl::EqualsIgnoreCase(upgrade_value, header_values.UpgradeValues.H2c);
-    const bool is_tls =
-        absl::StartsWithIgnoreCase(upgrade_value, header_values.UpgradeValues.TlsPrefix);
 
     // Ignore h2c upgrade requests until we support them.
     // See https://github.com/envoyproxy/envoy/issues/7161 for details.
@@ -866,7 +864,7 @@ StatusOr<CallbackResult> ConnectionImpl::onHeadersCompleteImpl() {
       Utility::removeConnectionUpgrade(request_or_response_headers,
                                        caseUnorderedSetContainingUpgradeAndHttp2Settings());
       request_or_response_headers.remove(header_values.Http2Settings);
-    } else if (is_tls && codec_settings_.ignore_http_11_tls_upgrade_) {
+    } else if (codec_settings_.allowed_upgrades_.size() > 0) {
       ENVOY_CONN_LOG(trace, "removing ignored tls upgrade headers.", connection_);
       request_or_response_headers.removeUpgrade();
       Utility::removeConnectionUpgrade(request_or_response_headers,

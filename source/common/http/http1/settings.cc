@@ -18,7 +18,17 @@ Http1Settings parseHttp1Settings(const envoy::config::core::v3::Http1ProtocolOpt
   ret.default_host_for_http_10_ = config.default_host_for_http_10();
   ret.enable_trailers_ = config.enable_trailers();
   ret.allow_chunked_length_ = config.allow_chunked_length();
-  ret.ignore_http_11_tls_upgrade_ = config.ignore_http_11_tls_upgrade();
+  // ret.ignore_http_11_upgrade_ = config.ignore_http_11_upgrade();
+
+  const auto& allowed_upgrades_proto = config.ignore_http_11_upgrade();
+  std::vector<std::string> allowed_upgrades;
+  allowed_upgrades.reserve(allowed_upgrades_proto.size());
+
+  for (const auto& allowed_upgrade : allowed_upgrades_proto) {
+    allowed_upgrades.emplace_back(allowed_upgrade);
+  }
+
+  ret.allowed_upgrades_ = allowed_upgrades;
 
   if (config.header_key_format().has_proper_case_words()) {
     ret.header_key_format_ = Http1Settings::HeaderKeyFormat::ProperCase;
