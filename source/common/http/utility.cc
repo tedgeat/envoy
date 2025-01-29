@@ -649,6 +649,19 @@ bool Utility::isWebSocketUpgradeRequest(const RequestHeaderMap& headers) {
                                  Http::Headers::get().UpgradeValues.WebSocket));
 }
 
+void Utility::removeUpgrade(RequestOrResponseHeaderMap& headers,
+                            StringUtil::CaseUnorderedSet tokens_to_remove) {
+  if (headers.Upgrade()) {
+    std::string new_value =
+        StringUtil::removeTokens(headers.getUpgradeValue(), ",", tokens_to_remove, ",");
+    if (new_value.empty()) {
+      headers.removeUpgrade();
+    } else {
+      headers.setUpgrade(new_value);
+    }
+  }
+}
+
 void Utility::removeConnectionUpgrade(RequestOrResponseHeaderMap& headers,
                                       StringUtil::CaseUnorderedSet tokens_to_remove) {
   if (headers.Connection()) {

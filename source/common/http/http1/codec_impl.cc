@@ -853,10 +853,11 @@ StatusOr<CallbackResult> ConnectionImpl::onHeadersCompleteImpl() {
   if (Utility::isUpgrade(request_or_response_headers) && upgradeAllowed()) {
     auto upgrade_value = request_or_response_headers.getUpgradeValue();
     const bool is_h2c = absl::EqualsIgnoreCase(upgrade_value, header_values.UpgradeValues.H2c);
+    const auto ignored_upgrades = codec_settings_.ignored_upgrades_;
 
     // Ignore h2c upgrade requests until we support them.
     // See https://github.com/envoyproxy/envoy/issues/7161 for details.
-    // TLS upgrades are rejected unless ignore_http_11_tls_upgrade is configured.
+    // Upgrades are rejected unless ignore_http_11_upgrade is configured.
     // See https://github.com/envoyproxy/envoy/issues/36305 for details.
     if (is_h2c) {
       ENVOY_CONN_LOG(trace, "removing unsupported h2c upgrade headers.", connection_);
@@ -864,12 +865,22 @@ StatusOr<CallbackResult> ConnectionImpl::onHeadersCompleteImpl() {
       Utility::removeConnectionUpgrade(request_or_response_headers,
                                        caseUnorderedSetContainingUpgradeAndHttp2Settings());
       request_or_response_headers.remove(header_values.Http2Settings);
-    } else if (codec_settings_.allowed_upgrades_.size() > 0) {
-      ENVOY_CONN_LOG(trace, "removing ignored tls upgrade headers.", connection_);
-      request_or_response_headers.removeUpgrade();
-      Utility::removeConnectionUpgrade(request_or_response_headers,
-                                       caseUnorderedSetContainingUpgrade());
-    } else {
+    } else if (!ignored_upgrades.empty()) {
+      ENVOY_CONN_LOG(trace, "removing ignored upgrade headers.", connection_);
+      if (ignored_upgrades.contains("*")) {
+        request_or_response_headers.removeUpgrade();
+        Utility::removeConnectionUpgrade(request_or_response_headers,
+                                         caseUnorderedSetContainingUpgrade());
+      } else {
+        Utility::removeUpgrade(request_or_response_headers, ignored_upgrades);
+        if (!request_or_response_headers.Upgrade()) {
+          Utility::removeConnectionUpgrade(request_or_response_headers,
+                                           caseUnorderedSetContainingUpgrade());
+        }
+      }
+    }
+
+    if (Utility::isUpgrade(request_or_response_headers)) {
       ENVOY_CONN_LOG(trace, "codec entering upgrade mode.", connection_);
       handling_upgrade_ = true;
     }

@@ -456,9 +456,8 @@ new_features:
     Added new command-line flag :option:`--skip-deprecated-logs`.
 - area: http
   change: |
-    Added default false :ref:`ignore_http_11_tls_upgrade
-    <envoy_v3_api_field_config.core.v3.Http1ProtocolOptions.ignore_http_11_tls_upgrade>`. When set to true, Upgrade headers
-    will be removed rather than rejecting the request.
+    Added default false :ref:`ignore_http_11_upgrade
+    <envoy_v3_api_field_config.core.v3.Http1ProtocolOptions.ignore_http_11_upgrade>`. A list of upgrade values to be removed
 
 deprecated:
 - area: rbac
