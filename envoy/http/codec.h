@@ -477,6 +477,8 @@ public:
   virtual void onMaxStreamsChanged(uint32_t num_streams) { UNREFERENCED_PARAMETER(num_streams); }
 };
 
+using StringMatcherSharedPtr = std::shared_ptr<Matchers::StringMatcher>;
+
 /**
  * HTTP/1.* Codec settings
  */
@@ -500,7 +502,7 @@ struct Http1Settings {
   bool allow_chunked_length_{false};
   // Remove HTTP/1.1 Upgrade header tokens matching any provided matcher. By default such
   // messages are rejected
-  std::vector<Matchers::StringMatcherPtr> ignore_upgrade_matchers_{};
+  std::vector<StringMatcherSharedPtr> ignore_upgrade_matchers_{};
 
   enum class HeaderKeyFormat {
     // By default no formatting is performed, presenting all headers in lowercase (as Envoy
